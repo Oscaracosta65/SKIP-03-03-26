@@ -1,61 +1,28 @@
-
 {source}
 <?php
-// Enable detailed error reporting
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+// [FIND-AND-REPLACE: removed ini_set(display_errors) and error_reporting –
+//  in a Joomla/Sorcerer context these cause PHP notices/warnings to be echoed
+//  as raw text. Error reporting is managed via Joomla's configuration.php.]
 
-// Set Content-Security-Policy header
-header("Content-Security-Policy: "
-  . "default-src 'self'; "
-  . "script-src 'self' 'unsafe-inline' "
-      . "https://code.jquery.com "
-      . "https://cdn.datatables.net "
-      . "https://*.google.com "
-      . "https://pagead2.googlesyndication.com "
-      . "https://www.googletagmanager.com "
-      . "https://www.gstatic.com; "
-  . "style-src 'self' 'unsafe-inline' "
-      . "https://fonts.googleapis.com "
-      . "https://cdn.datatables.net; "
-  . "font-src 'self' https://fonts.gstatic.com; "
-  . "img-src 'self' data: "
-      . "https://*.google.com "
-      . "https://googleads.g.doubleclick.net "
-      . "https://stats.g.doubleclick.net; "    // allow DC analytics images
-  . "connect-src 'self' "
-      . "https://stats.g.doubleclick.net "     // allow DC analytics XHR
-      . "https://www.google.com/recaptcha/ "  // allow reCAPTCHA API calls
-      . "https://www.gstatic.com/recaptcha/; "
-  . "frame-src "
-      . "https://*.google.com "
-      . "https://pagead2.googlesyndication.com "
-      . "https://www.google.com/recaptcha/;"
-);
+// [FIND-AND-REPLACE: removed header() Content-Security-Policy call –
+//  Joomla has already sent HTTP headers before a Sorcerer template runs.
+//  Set CSP via Joomla's .htaccess or a Joomla system plugin instead.]
 
-// Secure session cookies
-if (session_status() === PHP_SESSION_NONE) {
-    session_set_cookie_params([
-        'lifetime' => 0,
-        'path'     => '/',
-        'domain'   => '',
-        'secure'   => true,
-        'httponly' => true,
-        'samesite' => 'Lax'
-    ]);
-}
+// [FIND-AND-REPLACE: removed session_set_cookie_params() –
+//  Joomla starts and owns its session before any template code runs;
+//  session cookie flags are configured in Joomla's configuration.php.]
 
-// Joomla bootstrap
-if (!defined('_JEXEC')) define('_JEXEC', 1);
-if (!defined('JPATH_BASE')) define('JPATH_BASE', realpath(dirname(__FILE__) . '/../../'));
-require_once JPATH_BASE . '/includes/defines.php';
-require_once JPATH_BASE . '/includes/framework.php';
+// [FIND-AND-REPLACE: removed manual Joomla bootstrap –
+//  _JEXEC, JPATH_BASE and the full framework are already loaded by Joomla
+//  before a Sorcerer template executes. Re-requiring framework.php causes
+//  output and fatal errors that render as raw code on the page.]
 use Joomla\CMS\Factory;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\HTML\HTMLHelper;
 
-$app        = Factory::getApplication('site');
+// [FIND-AND-REPLACE: removed 'site' argument – Factory::getApplication() in
+//  Joomla 5 returns the already-running instance; no argument is needed.]
+$app = Factory::getApplication();
 $currUser   = Factory::getUser();
 $userGroups = $currUser->groups ?? [];
 // $allowedGroups       = [1, 2, 9, 13, 14];
@@ -2847,3 +2814,4 @@ $(document).ready(function() {
 [[/script]]
 [[/body]]
 [[/html]]
+{/source}
