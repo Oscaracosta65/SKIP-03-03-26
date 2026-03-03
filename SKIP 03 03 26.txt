@@ -163,7 +163,7 @@ $pureMode    = $app->input->getInt('pure_mode', 0);
 
 
 // Auto-tune flag
-$tune = $app->input->getInt('tune', 0);
+$tune = $app->input->getInt('tune', 1);   // default: Auto-Tune + Predict on first load
 
 // -- FIX: Clear tune mode on any POST so Save always runs in normal mode
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
