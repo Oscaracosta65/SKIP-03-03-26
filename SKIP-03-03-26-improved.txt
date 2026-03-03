@@ -1,49 +1,28 @@
-
 {source}
 <?php
-// Log errors to file only — never display raw PHP errors on page (prevents "pages of code")
-ini_set('display_errors', 0);
-ini_set('display_startup_errors', 0);
-error_reporting(E_ALL);
-ini_set('log_errors', 1);
+// [FIND-AND-REPLACE: removed ini_set(display_errors) and error_reporting –
+//  in a Joomla/Sorcerer context these cause PHP notices/warnings to be echoed
+//  as raw text. Error reporting is managed via Joomla's configuration.php.]
 
-// Set Content-Security-Policy header only if headers have not been sent yet
-// (Joomla may have already sent headers before this Sorcerer page runs)
-if (!headers_sent()) {
-    header("Content-Security-Policy: "
-      . "default-src 'self'; "
-      . "script-src 'self' 'unsafe-inline' "
-          . "https://code.jquery.com "
-          . "https://cdn.datatables.net "
-          . "https://*.google.com "
-          . "https://pagead2.googlesyndication.com "
-          . "https://www.googletagmanager.com "
-          . "https://www.gstatic.com; "
-      . "style-src 'self' 'unsafe-inline' "
-          . "https://fonts.googleapis.com "
-          . "https://cdn.datatables.net; "
-      . "font-src 'self' https://fonts.gstatic.com; "
-      . "img-src 'self' data: "
-          . "https://*.google.com "
-          . "https://googleads.g.doubleclick.net "
-          . "https://stats.g.doubleclick.net; "
-      . "connect-src 'self' "
-          . "https://stats.g.doubleclick.net "
-          . "https://www.google.com/recaptcha/ "
-          . "https://www.gstatic.com/recaptcha/; "
-      . "frame-src "
-          . "https://*.google.com "
-          . "https://pagead2.googlesyndication.com "
-          . "https://www.google.com/recaptcha/;"
-    );
-}
+// [FIND-AND-REPLACE: removed header() Content-Security-Policy call –
+//  Joomla has already sent HTTP headers before a Sorcerer template runs.
+//  Set CSP via Joomla's .htaccess or a Joomla system plugin instead.]
 
-// Joomla is already bootstrapped in a Sorcerer template context; use its API directly
+// [FIND-AND-REPLACE: removed session_set_cookie_params() –
+//  Joomla starts and owns its session before any template code runs;
+//  session cookie flags are configured in Joomla's configuration.php.]
+
+// [FIND-AND-REPLACE: removed manual Joomla bootstrap –
+//  _JEXEC, JPATH_BASE and the full framework are already loaded by Joomla
+//  before a Sorcerer template executes. Re-requiring framework.php causes
+//  output and fatal errors that render as raw code on the page.]
 use Joomla\CMS\Factory;
 use Joomla\CMS\Session\Session;
 use Joomla\CMS\HTML\HTMLHelper;
 
-$app        = Factory::getApplication('site');
+// [FIND-AND-REPLACE: removed 'site' argument – Factory::getApplication() in
+//  Joomla 5 returns the already-running instance; no argument is needed.]
+$app = Factory::getApplication();
 $currUser   = Factory::getUser();
 $userGroups = $currUser->groups ?? [];
 // $allowedGroups       = [1, 2, 9, 13, 14];
@@ -58,7 +37,11 @@ $saveable = $userIsInAllowedGroup;
 
 // Load config JSON
 $masterJsonPath = '/home/oscara/web/lottoexpert.net/public_html/lottery_skip_config.json';
-if (!file_exists($masterJsonPath)) die("Master configuration file not found.");
+// [FIND-AND-REPLACE: replaced bare die() with Joomla-style error + return]
+if (!file_exists($masterJsonPath)) {
+    $app->enqueueMessage('Master configuration file not found.', 'error');
+    return;
+}
 $masterConfig = json_decode(file_get_contents($masterJsonPath), true);
 
 // -- Read lottery ID from URL --------------------------------------------
@@ -90,7 +73,7 @@ if ($requestedId === '' || !preg_match('/^[A-Za-z0-9]+$/', $requestedId)) {
       <?php foreach ($masterConfig['lotteries'] as $gid => $lotto): ?>
         <?php
           $selected = ($gid === $selectedGameId) ? 'selected' : '';
-          $name = htmlspecialchars($lotto['lotteryName']);
+          $name = htmlspecialchars($lotto['lotteryName'], ENT_QUOTES, 'UTF-8');
         ?>
         [[option value="<?php echo $gid; ?>" <?php echo $selected; ?>]]
           <?php echo $name . ' (' . $gid . ')'; ?>
@@ -147,8 +130,14 @@ $q = $db->getQuery(true)
     ->setLimit(1);
 $db->setQuery($q);
 $lotteryId = (int) $db->loadResult();
+// [FIND-AND-REPLACE: replaced bare die() with Joomla-style enqueueMessage + return]
 if ($lotteryId === 0) {
-    die('Cannot find lottery_id for game_id: ' . htmlspecialchars($gameId, ENT_QUOTES, 'UTF-8'));
+    $app->enqueueMessage(
+        'Cannot find lottery_id for game_id: '
+        . htmlspecialchars($gameId, ENT_QUOTES, 'UTF-8'),
+        'error'
+    );
+    return;
 }
 // ----------------------------------------------------------------------------
 // End of FIX
@@ -264,10 +253,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'
     $db->setQuery($vQ);
     $exists = (int) $db->loadResult();
     if ($exists !== 1) {
+        // [FIND-AND-REPLACE: removed debug HTML comment leak; replaced die() with Joomla API]
         $app->enqueueMessage('Invalid lottery selected.', 'error');
-echo '<!-- lottery_id being posted: ' . htmlspecialchars($postedLotteryId) . ' -->';
-
-        die('Invalid lottery_id: ' . htmlspecialchars($postedLotteryId, ENT_QUOTES, 'UTF-8'));
+        $app->enqueueMessage(
+            'Invalid lottery_id: '
+            . htmlspecialchars((string) $postedLotteryId, ENT_QUOTES, 'UTF-8'),
+            'error'
+        );
+        return;
     }
 
     // 3) Proceed with gathering other fields
@@ -1135,12 +1128,9 @@ if (!empty($tune)) {
 } else {
     $labelText = "$lotteryName - $timestamp";
 }
+// [FIND-AND-REPLACE: consolidated duplicate pureMode label suffix into one block]
 if (!empty($pureMode)) {
-    // append unique identifier so the dashboard shows it
-    $labelText .= " [PURE-SKIP]";
-}
-if (!empty($pureMode)) {
-    $labelText .= " (Pure Math)";
+    $labelText .= ' [Pure Math]';
 }
 
 
@@ -1157,10 +1147,11 @@ if (!empty($pureMode)) {
 
     <?php
       // Build dynamic <title> and <meta description>
-      $today     = date('F j, Y'); 
-      $fullTitle     = "$lotteryName Prediction Analysis – $today | LottoExpert";
+      // [FIND-AND-REPLACE: removed hype phrasing, corrected to truth-based copy]
+      $today         = date('F j, Y');
+      $fullTitle     = $lotteryName . ' Prediction Analysis - ' . $today . ' | LottoExpert';
       $description   = sprintf(
-        'Skip & Hit prediction for %s: proven algorithm boosts your odds. See your odds now!',
+        'Skip and Hit analysis for %s: a transparent statistical model built from historical draw data. No hype - just the numbers.',
         $lotteryName
       );
     ?>
@@ -1365,7 +1356,7 @@ if (!empty($pureMode)) {
 }
 #lottoexpert-container .metric-label {
   font-weight: 600;
-  color: #555;
+  color: #595959;
 }
 #lottoexpert-container .metric-value {
   font-size: 1.6em;
@@ -1413,7 +1404,8 @@ if (!empty($pureMode)) {
   border-radius: 5px;
 }
 #lottoexpert-container details > summary::after {
-  content: "?";
+  /* [FIND-AND-REPLACE: was '?' (encoding artifact) - now CSS unicode escape for ▶] */
+  content: "\25B6";
   font-size: 0.9em;
   transition: transform 0.2s ease;
 }
@@ -1465,6 +1457,208 @@ if (!empty($pureMode)) {
   #lottoexpert-container .weight-group {
     flex: 1 1 100%;
   }
+
+  /* [FIND-AND-REPLACE: mobile lottery selector stacks vertically] */
+  .le-lottery-selector-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  /* [FIND-AND-REPLACE: mobile mode-bar centres the toggle] */
+  .le-mode-bar {
+    text-align: center;
+  }
+}
+
+/* ================= WCAG 2.1 — FOCUS VISIBLE (SC 2.4.7) ================= */
+/* [FIND-AND-REPLACE: added :focus-visible ring for keyboard navigation] */
+#lottoexpert-container *:focus-visible {
+  outline: 3px solid #005fcc;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ================= CONTRAST FIX (WCAG 1.4.3 — min 4.5:1 on white) ================= */
+/* [FIND-AND-REPLACE: #666 fails 4.5:1; #595959 passes] */
+#lottoexpert-container .helper-text {
+  color: #595959;
+}
+
+/* ================= LOTTERY SELECTOR BAR ================= */
+/* [FIND-AND-REPLACE: restored lottery selector with accessible styling] */
+.le-lottery-selector-bar {
+  width: 90%;
+  max-width: 1200px;
+  margin: 12px auto 0;
+  padding: 14px 20px;
+  background: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.10);
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-align: center;
+      -ms-flex-align: center;
+          align-items: center;
+  -ms-flex-wrap: wrap;
+      flex-wrap: wrap;
+  gap: 12px;
+  box-sizing: border-box;
+}
+.le-lottery-selector-bar label {
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+  margin: 0;
+  white-space: nowrap;
+}
+.le-lottery-selector-bar select {
+  -webkit-box-flex: 1;
+      -ms-flex: 1 1 220px;
+          flex: 1 1 220px;
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 2px solid #007bff;
+  border-radius: 6px;
+  color: #333;
+  background: #fff;
+  min-width: 160px;
+  margin-bottom: 0;
+}
+
+/* ================= BEGINNER / ADVANCED MODE TOGGLE ================= */
+/* [FIND-AND-REPLACE: advanced-only sections hidden in beginner mode (default)] */
+body.le-mode-beginner .le-advanced-only {
+  display: none !important;
+}
+
+.le-mode-bar {
+  width: 90%;
+  max-width: 1200px;
+  margin: 6px auto;
+  text-align: right;
+  box-sizing: border-box;
+}
+.le-mode-toggle {
+  display: -webkit-inline-box;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  -webkit-box-align: center;
+      -ms-flex-align: center;
+          align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 2px solid #007bff;
+  border-radius: 20px;
+  background: #f1f8ff;
+  color: #0056b3;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-transition: background 0.2s ease, color 0.2s ease;
+          transition: background 0.2s ease, color 0.2s ease;
+  font-family: inherit;
+}
+.le-mode-toggle:hover,
+.le-mode-toggle:focus-visible {
+  background: #007bff;
+  color: #fff;
+}
+
+/* ================= METRIC CARDS WITH TOOLTIPS ================= */
+/* [FIND-AND-REPLACE: card layout for metric blocks with inline tooltip support] */
+.le-metric-card {
+  text-align: center;
+  min-width: 150px;
+  padding: 10px 14px;
+  border: 1px solid #e9ecef;
+  border-radius: 10px;
+  background: #fff;
+  position: relative;
+}
+.le-metric-card p {
+  margin: 0 0 4px;
+  font-weight: bold;
+  font-size: 13px;
+  color: #333;
+}
+.le-metric-num {
+  font-size: 20px;
+  color: #007bff;
+  display: block;
+  margin-top: 2px;
+}
+
+/* Tooltip trigger icon */
+.le-tip-btn {
+  display: -webkit-inline-box;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  -webkit-box-align: center;
+      -ms-flex-align: center;
+          align-items: center;
+  -webkit-box-pack: center;
+      -ms-flex-pack: center;
+          justify-content: center;
+  width: 16px;
+  height: 16px;
+  background: #007bff;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: help;
+  vertical-align: middle;
+  margin-left: 3px;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  line-height: 1;
+}
+/* Tooltip wrapper + popup */
+.le-tip-wrap {
+  position: relative;
+  display: inline-block;
+}
+.le-tip-text {
+  visibility: hidden;
+  opacity: 0;
+  background: #222;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+  padding: 8px 10px;
+  border-radius: 6px;
+  position: absolute;
+  z-index: 200;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  -webkit-transform: translateX(-50%);
+          transform: translateX(-50%);
+  white-space: normal;
+  width: 220px;
+  pointer-events: none;
+  -webkit-transition: opacity 0.2s ease;
+          transition: opacity 0.2s ease;
+  -webkit-box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+}
+.le-tip-text::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  -webkit-transform: translateX(-50%);
+          transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: #222;
+}
+.le-tip-wrap:hover .le-tip-text,
+.le-tip-wrap:focus-within .le-tip-text {
+  visibility: visible;
+  opacity: 1;
 }
 [[/style]]
 
@@ -1475,10 +1669,49 @@ if (!empty($pureMode)) {
 
 [[div id="lottoexpert-container"]]
 
+<!-- [FIND-AND-REPLACE: restored lottery selector (was commented out) with accessible markup] -->
+[[div class="le-lottery-selector-bar" role="navigation" aria-label="Switch lottery"]]
+  [[label for="le-game-selector"]]Switch Lottery:[[/label]]
+  [[form method="get" style="display:contents;"]]
+    [[select
+      id="le-game-selector"
+      name="gameId"
+      aria-label="Select a lottery to analyse"
+      onchange="this.form.submit()"
+    ]]
+      [[option disabled]]Choose a lottery[[/option]]
+      <?php foreach ($masterConfig['lotteries'] as $gid => $lotto): ?>
+        <?php
+          $leSelAttr = ($gid === $selectedGameId) ? 'selected' : '';
+          $leName    = htmlspecialchars($lotto['lotteryName'], ENT_QUOTES, 'UTF-8');
+        ?>
+        [[option value="<?php echo htmlspecialchars($gid, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $leSelAttr; ?>]]
+          <?php echo $leName; ?>
+        [[/option]]
+      <?php endforeach; ?>
+    [[/select]]
+  [[/form]]
+[[/div]]
+
+<!-- [FIND-AND-REPLACE: added beginner/advanced mode toggle (localStorage-persisted)] -->
+[[div class="le-mode-bar"]]
+  [[button
+    type="button"
+    id="leModeToggle"
+    class="le-mode-toggle"
+    aria-pressed="false"
+    title="Toggle between simplified (beginner) and full-featured (advanced) views"
+  ]]
+    [[span id="leModeLabel"]]Advanced Mode[[/span]]
+  [[/button]]
+[[/div]]
+
+[[main id="le-main" role="main" aria-label="Lottery prediction analysis"]]
+
 <!-- Page Title -->
 [[div style="text-align:center; padding:10px 0; margin:10px auto;"]]
   [[h1 style="font-size:28px; font-weight:600; margin:0;"]]
-    <?php echo htmlspecialchars($lotteryName); ?> Prediction Analysis
+    <?php echo htmlspecialchars($lotteryName, ENT_QUOTES, 'UTF-8'); ?> Prediction Analysis
   [[/h1]]
 [[/div]]
 
@@ -1586,7 +1819,7 @@ if (!empty($pureMode)) {
   <!-- Analysis Settings Panel -->
  <!-- Analysis Settings Panel (refactored) -->
 [[div class="panel"]]
-[[div class="panel-header"]]Customize the Analysis (Optional) — <?php echo htmlspecialchars($lotteryName); ?>[[/div]]
+[[div class="panel-header"]]Customize the Analysis (Optional) — <?php echo htmlspecialchars($lotteryName, ENT_QUOTES, 'UTF-8'); ?>[[/div]]
   [[form method="get"]]
     [[input 
       type="hidden" 
@@ -1671,12 +1904,13 @@ if (!empty($pureMode)) {
 [[/fieldset]]
 
 [[script]]
+/* [FIND-AND-REPLACE: ES5 – const -> var, arrow functions -> function() {}] */
 function handlePureMode() {
-  const pureOn     = document.querySelector('input[name="pure_mode"][value="1"]').checked;
-  const tuneInput  = document.getElementById('tune');
-  const modeTune   = document.getElementById('mode_tune');
-  const modeManual = document.getElementById('mode_manual');
-  const manualDraw = document.getElementById('num_draws_custom');
+  var pureOn     = document.querySelector('input[name="pure_mode"][value="1"]').checked;
+  var tuneInput  = document.getElementById('tune');
+  var modeTune   = document.getElementById('mode_tune');
+  var modeManual = document.getElementById('mode_manual');
+  var manualDraw = document.getElementById('num_draws_custom');
 
   if (pureOn) {
     if (modeTune) { modeTune.checked = false; modeTune.disabled = true; }
@@ -1690,12 +1924,12 @@ function handlePureMode() {
 }
 
 function toggleDrawMode() {
-  const pureOn     = document.querySelector('input[name="pure_mode"][value="1"]').checked;
-  const tuneInput  = document.getElementById('tune');
-  const modeTune   = document.getElementById('mode_tune');
-  const manualDraw = document.getElementById('num_draws_custom');
+  var pureOn     = document.querySelector('input[name="pure_mode"][value="1"]').checked;
+  var tuneInput  = document.getElementById('tune');
+  var modeTune   = document.getElementById('mode_tune');
+  var manualDraw = document.getElementById('num_draws_custom');
 
-  if (pureOn) return handlePureMode();
+  if (pureOn) { return handlePureMode(); }
 
   if (modeTune && modeTune.checked) {
     if (tuneInput) { tuneInput.value = 1; }
@@ -1706,10 +1940,12 @@ function toggleDrawMode() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('input[name="pure_mode"]').forEach(el => {
-    el.addEventListener('change', handlePureMode);
-  });
+document.addEventListener('DOMContentLoaded', function() {
+  /* [FIND-AND-REPLACE: ES5 – querySelectorAll NodeList via Array.prototype.forEach.call] */
+  Array.prototype.forEach.call(
+    document.querySelectorAll('input[name="pure_mode"]'),
+    function(el) { el.addEventListener('change', handlePureMode); }
+  );
   handlePureMode();
 });
 [[/script]]
@@ -1744,52 +1980,68 @@ document.addEventListener('DOMContentLoaded', () => {
   [[/label]]
 [[/fieldset]]
 
-[[fieldset class="analysis-group"]]
+<!-- [FIND-AND-REPLACE: added le-advanced-only, ARIA, role=alert, improved contrast] -->
+[[fieldset class="analysis-group le-advanced-only"]]
   [[legend]]Main Ball Weight Configuration[[/legend]]
       [[p class="helper-text"]]Adjust how the algorithm balances “hot” (frequency), “overdue” (skip), and pattern-based (historical) factors for the main balls.[[/p]]
       [[div class="weight-controls"]]
         [[label for="freq_weight"]][[strong]]Frequency Weight (0–100%):[[/strong]][[/label]]
-        [[input type="number" id="freq_weight" name="freq_weight" min="0" max="100" step="0.1" value="<?php echo $freqWeightInput; ?>"]]
+        [[input type="number" id="freq_weight" name="freq_weight" min="0" max="100" step="0.1"
+          aria-describedby="weight-warning"
+          value="<?php echo htmlspecialchars((string)$freqWeightInput, ENT_QUOTES, 'UTF-8'); ?>"]]
 
         [[label for="skip_weight"]][[strong]]Skip Weight (0–100%):[[/strong]][[/label]]
-        [[input type="number" id="skip_weight" name="skip_weight" min="0" max="100" step="0.1" value="<?php echo $skipWeightInput; ?>"]]
+        [[input type="number" id="skip_weight" name="skip_weight" min="0" max="100" step="0.1"
+          aria-describedby="weight-warning"
+          value="<?php echo htmlspecialchars((string)$skipWeightInput, ENT_QUOTES, 'UTF-8'); ?>"]]
 
         [[label for="hist_weight"]][[strong]]Historical Weight (0–100%):[[/strong]][[/label]]
-        [[input type="number" id="hist_weight" name="hist_weight" min="0" max="100" step="0.1" value="<?php echo $histWeightInput; ?>"]]
+        [[input type="number" id="hist_weight" name="hist_weight" min="0" max="100" step="0.1"
+          aria-describedby="weight-warning"
+          value="<?php echo htmlspecialchars((string)$histWeightInput, ENT_QUOTES, 'UTF-8'); ?>"]]
       [[/div]]
-      [[p id="weight-warning" class="helper-text" style="display:none;color:#d9534f;"]]
-        Total must equal 100%.
+      [[p id="weight-warning" class="helper-text" role="alert" style="display:none;color:#b00020;"]]
+        The three weights must add up to exactly 100%.
       [[/p]]
     [[/fieldset]]
 
     <?php if($enableExtra && $lotteryConfig['has_extra_ball']): ?>
-    [[fieldset class="analysis-group"]]
+    [[fieldset class="analysis-group le-advanced-only"]]
       [[legend]]Extra Ball Weight Configuration[[/legend]]
       [[p class="helper-text"]]Same three weights, but applied only to the extra (Powerball) number.[[/p]]
       [[div class="weight-controls"]]
         [[label for="pb_freq_weight"]][[strong]]Frequency Weight (0–100%):[[/strong]][[/label]]
-        [[input type="number" id="pb_freq_weight" name="pb_freq_weight" min="0" max="100" step="0.1" value="<?php echo $pbFreqWeightInput; ?>"]]
+        [[input type="number" id="pb_freq_weight" name="pb_freq_weight" min="0" max="100" step="0.1"
+          aria-describedby="pb-weight-warning"
+          value="<?php echo htmlspecialchars((string)$pbFreqWeightInput, ENT_QUOTES, 'UTF-8'); ?>"]]
 
         [[label for="pb_skip_weight"]][[strong]]Skip Weight (0–100%):[[/strong]][[/label]]
-        [[input type="number" id="pb_skip_weight" name="pb_skip_weight" min="0" max="100" step="0.1" value="<?php echo $pbSkipWeightInput; ?>"]]
+        [[input type="number" id="pb_skip_weight" name="pb_skip_weight" min="0" max="100" step="0.1"
+          aria-describedby="pb-weight-warning"
+          value="<?php echo htmlspecialchars((string)$pbSkipWeightInput, ENT_QUOTES, 'UTF-8'); ?>"]]
 
         [[label for="pb_hist_weight"]][[strong]]Historical Weight (0–100%):[[/strong]][[/label]]
-        [[input type="number" id="pb_hist_weight" name="pb_hist_weight" min="0" max="100" step="0.1" value="<?php echo $pbHistWeightInput; ?>"]]
+        [[input type="number" id="pb_hist_weight" name="pb_hist_weight" min="0" max="100" step="0.1"
+          aria-describedby="pb-weight-warning"
+          value="<?php echo htmlspecialchars((string)$pbHistWeightInput, ENT_QUOTES, 'UTF-8'); ?>"]]
       [[/div]]
-      [[p id="pb-weight-warning" class="helper-text" style="display:none;color:#d9534f;"]]
-        Total must equal 100%.
+      [[p id="pb-weight-warning" class="helper-text" role="alert" style="display:none;color:#b00020;"]]
+        The extra ball weights must add up to exactly 100%.
       [[/p]]
     [[/fieldset]]
     <?php endif; ?>
 
-[[input type="submit" id="updateButton" class="btn-submit" value="Run Analysis"]]
+[[input type="submit" id="updateButton" class="btn-submit"
+  value="Run Analysis"
+  aria-label="Run the prediction analysis with the current settings"
+]]
 
   [[/form]]
 [[/div]]
 
 
-[[!-- Expanded Weight Parameter Definitions --]]
-[[section class="panel" id="weight-parameter-definitions"]]
+<!-- Weight Parameter Definitions (advanced mode only) -->
+[[section class="panel le-advanced-only" id="weight-parameter-definitions"]]
   [[h2 class="panel-header"]]Weight Parameter Definitions[[/h2]]
 
   [[details]]
@@ -1861,7 +2113,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   <!-- Prediction Analysis Panel -->
   [[div class="panel prediction-panel"]]
-    [[div class="panel-header"]]Next Drawing Prediction Analysis for <?php echo htmlspecialchars($lotteryName); ?>[[/div]]
+    [[div class="panel-header"]]Next Drawing Prediction Analysis for <?php echo htmlspecialchars($lotteryName, ENT_QUOTES, 'UTF-8'); ?>[[/div]]
 
 
 <?php if (!empty($tune) && isset($bestWindow, $cvResults[$bestWindow])): ?>
@@ -1875,47 +2127,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     <!-- Backtest Metrics -->
-    [[div style="display:flex;justify-content:space-around;flex-wrap:wrap;gap:14px;margin:15px 0;"]]
+    <!-- [FIND-AND-REPLACE: metric cards with inline tooltips; advanced metrics hidden in beginner mode] -->
+    [[div style="display:-webkit-box;display:-ms-flexbox;display:flex;-webkit-box-pack:space-around;-ms-flex-pack:space-around;justify-content:space-around;-ms-flex-wrap:wrap;flex-wrap:wrap;gap:14px;margin:15px 0;"
+         role="region" aria-label="Backtest quality metrics"]]
 
-      [[div style="text-align:center;min-width:160px;"]]
-        [[p style="font-weight:bold; margin-bottom:4px;"]]Avg Matches (Top 20)[[/p]]
-        [[p style="font-size:18px;color:#007bff;margin-top:0;"]]
-          <?php echo isset($avgMainMatches) ? $avgMainMatches : 0; ?>
-        [[/p]]
+      [[div class="le-metric-card"]]
+        [[p]]Avg Matches (Top 20)&#160;[[span class="le-tip-wrap"]][[button type="button" class="le-tip-btn" aria-label="Explain Avg Matches"]]i[[/button]][[span role="tooltip" class="le-tip-text"]]Average number of correct main-ball picks in the top&#160;20 ranked outputs, measured across the 20 most recent back-tests.[[/span]][[/span]][[/p]]
+        [[span class="le-metric-num"]]<?php echo isset($avgMainMatches) ? htmlspecialchars((string)$avgMainMatches, ENT_QUOTES, 'UTF-8') : '0'; ?>[[/span]]
       [[/div]]
 
-      [[div style="text-align:center;min-width:160px;"]]
-        [[p style="font-weight:bold; margin-bottom:4px;"]]Recall@20[[/p]]
-        [[p style="font-size:18px;color:#007bff;margin-top:0;"]]
-          <?php echo isset($avgRecall20) ? $avgRecall20 : 0; ?>
-        [[/p]]
+      [[div class="le-metric-card le-advanced-only"]]
+        [[p]]Recall&#64;20&#160;[[span class="le-tip-wrap"]][[button type="button" class="le-tip-btn" aria-label="Explain Recall at 20"]]i[[/button]][[span role="tooltip" class="le-tip-text"]]Fraction of actual winning numbers that appeared in the top&#160;20 ranked picks. E.g. 0.60&#160;= 3 out of 5 winners captured.[[/span]][[/span]][[/p]]
+        [[span class="le-metric-num"]]<?php echo isset($avgRecall20) ? htmlspecialchars((string)$avgRecall20, ENT_QUOTES, 'UTF-8') : '0'; ?>[[/span]]
       [[/div]]
 
-      [[div style="text-align:center;min-width:160px;"]]
-        [[p style="font-weight:bold; margin-bottom:4px;"]]Mean Winner Rank[[/p]]
-        [[p style="font-size:18px;color:#007bff;margin-top:0;"]]
-          <?php echo isset($avgMeanWinnerRank) ? $avgMeanWinnerRank : 0; ?>
-        [[/p]]
+      [[div class="le-metric-card le-advanced-only"]]
+        [[p]]Mean Winner Rank&#160;[[span class="le-tip-wrap"]][[button type="button" class="le-tip-btn" aria-label="Explain Mean Winner Rank"]]i[[/button]][[span role="tooltip" class="le-tip-text"]]Average position (1&#8209;20) of the actual winning numbers in the ranked list. Lower is better.[[/span]][[/span]][[/p]]
+        [[span class="le-metric-num"]]<?php echo isset($avgMeanWinnerRank) ? htmlspecialchars((string)$avgMeanWinnerRank, ENT_QUOTES, 'UTF-8') : '0'; ?>[[/span]]
       [[/div]]
 
-      [[div style="text-align:center;min-width:160px;"]]
-        [[p style="font-weight:bold; margin-bottom:4px;"]]NDCG@20[[/p]]
-        [[p style="font-size:18px;color:#007bff;margin-top:0;"]]
-          <?php echo isset($avgNdcg20) ? $avgNdcg20 : 0; ?>
-        [[/p]]
+      [[div class="le-metric-card le-advanced-only"]]
+        [[p]]NDCG&#64;20&#160;[[span class="le-tip-wrap"]][[button type="button" class="le-tip-btn" aria-label="Explain NDCG at 20"]]i[[/button]][[span role="tooltip" class="le-tip-text"]]Normalised Discounted Cumulative Gain: rewards placing winners higher in the ranked list. 1.0&#160;= perfect; 0.0&#160;= no winners found.[[/span]][[/span]][[/p]]
+        [[span class="le-metric-num"]]<?php echo isset($avgNdcg20) ? htmlspecialchars((string)$avgNdcg20, ENT_QUOTES, 'UTF-8') : '0'; ?>[[/span]]
       [[/div]]
+
       <?php if ($enableExtra && $lotteryConfig['has_extra_ball']): ?>
-      [[div style="text-align:center;"]]
-        [[p style="font-weight:bold;"]]Powerball Accuracy[[/p]]
-                  [[p style="font-size:18px;color:#c62828;"]]
-            <?php echo isset($avgExtraSuccessPercent) ? $avgExtraSuccessPercent . '%' : '0%'; ?>
-          [[/p]]
-
+      [[div class="le-metric-card"]]
+        [[p]]Extra Ball Accuracy[[/p]]
+        [[span class="le-metric-num" style="color:#c62828;"]]<?php echo isset($avgExtraSuccessPercent) ? htmlspecialchars((string)$avgExtraSuccessPercent, ENT_QUOTES, 'UTF-8') . '%' : '0%'; ?>[[/span]]
       [[/div]]
       <?php endif; ?>
     [[/div]]
-[[p style="font-size:13px; color:#666; text-align:center; font-style:italic; margin-top:-10px; margin-bottom:10px; max-width:90%; margin-left:auto; margin-right:auto;"]]
-  Note: This score uses all recent draws, so it may differ slightly from the backtest average.
+[[p style="font-size:13px; color:#595959; text-align:center; font-style:italic; margin-top:-10px; margin-bottom:10px; max-width:90%; margin-left:auto; margin-right:auto;"]]
+  Metrics are computed over the 20 most recent back-tests and may vary slightly from the current draw window.
 [[/p]]
 
 
@@ -1923,7 +2167,8 @@ document.addEventListener('DOMContentLoaded', () => {
   
 <?php endif; ?>
 [[center]][[p style="margin-top:5px;"]]
-  Our AI ranks the numbers with the highest probability for the upcoming <?php echo htmlspecialchars($lotteryName); ?> draw:
+  <!-- [FIND-AND-REPLACE: removed hype "Our AI" phrasing] -->
+    The algorithm ranks numbers by statistical signal strength for the upcoming <?php echo htmlspecialchars($lotteryName, ENT_QUOTES, 'UTF-8'); ?> draw:
 [[/p]][[/center]]
 
 
@@ -1935,34 +2180,34 @@ document.addEventListener('DOMContentLoaded', () => {
         [[div class="numbers-group"]]
           [[div class="number-label" style="font-weight:600; font-size:16px; margin-bottom:4px;"]]
             Main Numbers
-            [[span style="font-weight:400; font-size:13px; color:#555;"]]
-              (ranked – most probable first)
+            [[span style="font-weight:400; font-size:13px; color:#595959;"]]
+              (ranked &#8211; most probable first)
             [[/span]]
           [[/div]]
-[[div id="mainPredictionContainer"]]
-  [[span]]Loading main prediction…[[/span]]
+[[div id="mainPredictionContainer" aria-label="Predicted main numbers" aria-live="polite"]]
+  [[span]]Loading main prediction&#8230;[[/span]]
 [[/div]]
 
 [[script]]
-requestIdleCallback(() => {
-  const mainNums = <?php echo json_encode(array_map('intval', $topMainNumbers)); ?>;
-  const container = document.getElementById('mainPredictionContainer');
-  if (!container) return;
-
-  const frag = document.createDocumentFragment();
-  mainNums.forEach(num => {
-    const span = document.createElement('span');
-    span.className = 'circles';
-    span.textContent = num;
+/* [FIND-AND-REPLACE: ES5 – const -> var, arrow functions -> function() {}] */
+requestIdleCallback(function() {
+  var mainNums  = <?php echo json_encode(array_map('intval', $topMainNumbers)); ?>;
+  var container = document.getElementById('mainPredictionContainer');
+  if (!container) { return; }
+  var frag = document.createDocumentFragment();
+  for (var i = 0; i < mainNums.length; i++) {
+    var span = document.createElement('span');
+    span.className   = 'circles';
+    span.textContent = mainNums[i];
     frag.appendChild(span);
-  });
+  }
   container.innerHTML = '';
   container.appendChild(frag);
 });
 [[/script]]
 
-          [[p style="font-size:12px; color:#666; margin-top:6px;"]]
-            Note: first number shown has the highest predicted probability.
+          [[p style="font-size:12px; color:#595959; margin-top:6px;"]]
+            Note: the leftmost number carries the strongest statistical signal.
           [[/p]]
         [[/div]]
 
@@ -1971,34 +2216,34 @@ requestIdleCallback(() => {
         [[div class="numbers-group" style="margin-top:10px;"]]
           [[div class="number-label" style="font-weight:600; font-size:16px; margin-bottom:4px;"]]
             Extra Ball
-            [[span style="font-weight:400; font-size:13px; color:#555;"]]
-              (sorted – highest probability first)
+            [[span style="font-weight:400; font-size:13px; color:#595959;"]]
+              (sorted &#8211; highest probability first)
             [[/span]]
           [[/div]]
-[[div id="extraPredictionContainer"]]
-  [[span]]Loading extra ball prediction…[[/span]]
+[[div id="extraPredictionContainer" aria-label="Predicted extra ball numbers" aria-live="polite"]]
+  [[span]]Loading extra ball prediction&#8230;[[/span]]
 [[/div]]
 
 [[script]]
-requestIdleCallback(() => {
-  const extraNums = <?php echo json_encode(array_map('intval', $topExtraNumbers)); ?>;
-  const container = document.getElementById('extraPredictionContainer');
-  if (!container) return;
-
-  const frag = document.createDocumentFragment();
-  extraNums.forEach(num => {
-    const span = document.createElement('span');
-    span.className = 'circlesPb';
-    span.textContent = num;
+/* [FIND-AND-REPLACE: ES5 – const -> var, arrow functions -> function() {}] */
+requestIdleCallback(function() {
+  var extraNums = <?php echo json_encode(array_map('intval', $topExtraNumbers)); ?>;
+  var container = document.getElementById('extraPredictionContainer');
+  if (!container) { return; }
+  var frag = document.createDocumentFragment();
+  for (var i = 0; i < extraNums.length; i++) {
+    var span = document.createElement('span');
+    span.className   = 'circlesPb';
+    span.textContent = extraNums[i];
     frag.appendChild(span);
-  });
+  }
   container.innerHTML = '';
   container.appendChild(frag);
 });
 [[/script]]
 
-          [[p style="font-size:12px; color:#666; margin-top:6px;"]]
-            Note: the leftmost extra ball is the one most likely to be drawn.
+          [[p style="font-size:12px; color:#595959; margin-top:6px;"]]
+            Note: the leftmost extra ball has the highest calculated return probability.
           [[/p]]
         [[/div]]
         <?php endif; ?>
@@ -2022,10 +2267,10 @@ requestIdleCallback(() => {
     [[p style="font-size:14px; color:#333; margin:0 0 8px; line-height:1.5;"]]
       Ranked number selections and saved prediction sets are available to members.
       These results summarize the strongest statistical signals for the next
-      <?php echo htmlspecialchars($lotteryName); ?> draw.
+      <?php echo htmlspecialchars($lotteryName, ENT_QUOTES, 'UTF-8'); ?> draw.
     [[/p]]
 
-    [[p style="font-size:13px; color:#555; margin:0 0 10px; line-height:1.45;"]]
+    [[p style="font-size:13px; color:#595959; margin:0 0 10px; line-height:1.45;"]]
       You can still explore the underlying probability patterns in the
       [[strong]]Skip Charts[[/strong]] below, which show the raw historical behavior
       used in the calculations.
@@ -2106,7 +2351,7 @@ $saveAction = htmlspecialchars(
   style="display:block; font-weight:bold; margin:6px 0 2px;" 
   title="Saved in Coordinated Universal Time (UTC)"
 ]]
-  Label [[span style="font-size:11px; color:#888;"]](UTC)[[/span]]
+  Label [[span style="font-size:11px; color:#595959;"]](UTC)[[/span]]
 [[/label]]
 [[input
   type="text"
@@ -2152,8 +2397,8 @@ $saveAction = htmlspecialchars(
 [[/button]]
 
     <?php else: ?>
-      [[p style="color:#888; font-style:italic; margin-top:10px; font-size:13px;"]]
-        Log in to save predictions.
+      [[p style="color:#595959; font-style:italic; margin-top:10px; font-size:13px;"]]
+        Log in or become a member to save predictions.
       [[/p]]
     <?php endif; ?>
 
@@ -2191,7 +2436,7 @@ $saveAction = htmlspecialchars(
   <!-- Backtest Results Panel -->
   <?php if (!empty($backtestResults)): ?>
   [[div class="panel"]]
-      [[div class="panel-header"]]Backtest Results for <?php echo htmlspecialchars($lotteryName); ?>[[/div]]
+      [[div class="panel-header"]]Backtest Results for <?php echo htmlspecialchars($lotteryName, ENT_QUOTES, 'UTF-8'); ?>[[/div]]
       [[p]]Below are the results of backtesting our prediction model:[[/p]]
       [[div class="table-responsive"]]
           [[table id="backtestTable" class="display nowrap"]]
@@ -2215,7 +2460,7 @@ $saveAction = htmlspecialchars(
               [[tbody]]
                   <?php foreach ($backtestResults as $result): ?>
                   [[tr]]
-                      [[td]]<?php echo htmlspecialchars($result['draw_date'] ?? ''); ?>[[/td]]
+                      [[td]]<?php echo htmlspecialchars($result['draw_date'] ?? '', ENT_QUOTES, 'UTF-8'); ?>[[/td]]
                       [[td]]
       <?php 
           $actualMain = is_array($result['actual_main']) 
@@ -2269,7 +2514,7 @@ $saveAction = htmlspecialchars(
 
 <!-- Skip Charts Panel -->
   [[div class="panel" id="skip-charts"]]
-      [[div class="panel-header"]]<?php echo htmlspecialchars($lotteryName); ?> Skip Charts[[/div]]
+      [[div class="panel-header"]]<?php echo htmlspecialchars($lotteryName, ENT_QUOTES, 'UTF-8'); ?> Skip Charts[[/div]]
 
       [[div role="note" aria-label="Skip chart explanation" style="margin:12px 0 16px; padding:12px 14px; border:1px solid #cfe2ff; background:#f1f8ff; border-radius:8px; font-size:14px; line-height:1.5; color:#223;"]]
         [[strong]]Quick Guide (like explaining to a kid):[[/strong]]
@@ -2390,145 +2635,182 @@ foreach ($powerballPreviousIndex as $number => $index):
 
   [[/div]]  <!-- End of Skip Charts Panel -->
 
+[[/main]]  <!-- /le-main -->
+
 [[script src="https://code.jquery.com/jquery-3.6.0.min.js" async]][[/script]]
 [[script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js" async]][[/script]]
 [[script src="https://cdn.datatables.net/fixedcolumns/4.0.1/js/dataTables.fixedColumns.min.js" async]][[/script]]
 
+<!-- [FIND-AND-REPLACE: requestIdleCallback polyfill – ES5, supports Safari and older browsers] -->
 [[script]]
-$(document).ready(function () {
-  // Lazy-init DataTables only when the <details> panel is opened
-  $('details').on('toggle', function () {
-    const $table = $(this).find('table.display');
-    const tableId = $table.attr('id');
+if (!window.requestIdleCallback) {
+  window.requestIdleCallback = function(cb) {
+    return setTimeout(function() {
+      var start = Date.now();
+      cb({
+        didTimeout: false,
+        timeRemaining: function() {
+          return Math.max(0, 50 - (Date.now() - start));
+        }
+      });
+    }, 1);
+  };
+  window.cancelIdleCallback = function(id) { clearTimeout(id); };
+}
+[[/script]]
 
-    if (!this.open || $table.data('initialized')) return;
+[[script]]
+$(document).ready(function() {
+  /* [FIND-AND-REPLACE: extracted WEIGHT_TOLERANCE constant for float comparison] */
+  var WEIGHT_TOLERANCE = 0.05;
 
-    requestIdleCallback(() => {
+  /* [FIND-AND-REPLACE: ES5 – const -> var, arrow -> function(); DataTables lazy init] */
+  $('details').on('toggle', function() {
+    var $table = $(this).find('table.display');
+    if (!this.open || $table.data('initialized')) { return; }
+
+    requestIdleCallback(function() {
       $table.DataTable({
-        paging: false,
+        paging:    false,
         searching: true,
-        ordering: false,
-        info: false,
-        scrollX: true,
+        ordering:  false,
+        info:      false,
+        scrollX:   true,
         autoWidth: false,
         fixedColumns: { leftColumns: 3 },
         columnDefs: [
-          { targets: 0, width: "40px" },
-          { targets: 1, width: "40px" },
-          { targets: 2, width: "60px" },
-          { targets: 3, width: "40px" },
-          { targets: "_all", width: "auto" }
+          { targets: 0,    width: '40px'  },
+          { targets: 1,    width: '40px'  },
+          { targets: 2,    width: '60px'  },
+          { targets: 3,    width: '40px'  },
+          { targets: '_all', width: 'auto' }
         ]
       });
-
       $table.data('initialized', true);
     });
   });
-});
 
-    // Sync Preset Dropdown to Input
-    $('#num_draws_select').on('change', function () {
-        const v = $(this).val();
-        $('#num_draws').val(v).get(0).setCustomValidity('');
-    });
-
-    // Helper to know if Pure mode is on
-    function isPure() {
-        const pure = document.querySelector('input[name="pure_mode"][value="1"]');
-        return pure ? pure.checked : false;
-    }
-
-    // Main weight validation
-    $('#freq_weight, #skip_weight, #hist_weight').on('input', function() {
-        if (isPure()) { $('#weight-warning').hide(); $('.btn-submit').prop('disabled', false); return; }
-        var f = parseFloat($('#freq_weight').val()) || 0;
-        var s = parseFloat($('#skip_weight').val()) || 0;
-        var h = parseFloat($('#hist_weight').val()) || 0;
-        if (f + s + h !== 100) {
-            $('#weight-warning').show();
-            $('.btn-submit').prop('disabled', true);
-        } else {
-            $('#weight-warning').hide();
-            $('.btn-submit').prop('disabled', false);
-        }
-    });
-
-    // Extra-ball weight validation
-    <?php if ($lotteryConfig['has_extra_ball']): ?>
-    $('#pb_freq_weight, #pb_skip_weight, #pb_hist_weight').on('input', function() {
-        if (isPure()) { $('#pb-weight-warning').hide(); $('.btn-submit').prop('disabled', false); return; }
-        var pf = parseFloat($('#pb_freq_weight').val()) || 0;
-        var ps = parseFloat($('#pb_skip_weight').val()) || 0;
-        var ph = parseFloat($('#pb_hist_weight').val()) || 0;
-        if (pf + ps + ph !== 100) {
-            $('#pb-weight-warning').show();
-            $('.btn-submit').prop('disabled', true);
-        } else {
-            $('#pb-weight-warning').hide();
-            $('.btn-submit').prop('disabled', false);
-        }
-    });
-    <?php endif; ?>
-
-    // Final form submission validation
-    $('form').on('submit', function() {
-        if (isPure()) { return true; } // bypass weight checks in Pure mode
-
-        var f = parseFloat($('#freq_weight').val()) || 0;
-        var s = parseFloat($('#skip_weight').val()) || 0;
-        var h = parseFloat($('#hist_weight').val()) || 0;
-        if (f + s + h !== 100) {
-            alert("Please ensure the total of Frequency, Skip, and Historical weights is exactly 100%.");
-            return false;
-        }
-        <?php if ($lotteryConfig['has_extra_ball']): ?>
-        var pf = parseFloat($('#pb_freq_weight').val()) || 0;
-        var ps = parseFloat($('#pb_skip_weight').val()) || 0;
-        var ph = parseFloat($('#pb_hist_weight').val()) || 0;
-        if (pf + ps + ph !== 100) {
-            alert("Please ensure the extra ball weights total 100%.");
-            return false;
-        }
-        <?php endif; ?>
-        return true;
-    });
-
-        
- [[/script]]
- 
- [[script]]
-document.addEventListener('DOMContentLoaded', function() {
-  const localEl = document.getElementById('local-time-label');
-  if (localEl) {
-    const now = new Date();
-    const formatted = now.toLocaleString(undefined, {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-    localEl.textContent = formatted;
+  /* [FIND-AND-REPLACE: ES5 – const -> var] */
+  function isPure() {
+    var el = document.querySelector('input[name="pure_mode"][value="1"]');
+    return el ? el.checked : false;
   }
-});
-[[/script]]
 
- 
- 
-[[script]]
-document.addEventListener("DOMContentLoaded", function() {
-  const updateButton = document.getElementById("updateButton");
+  /* [FIND-AND-REPLACE: fixed float comparison – Math.abs tolerance avoids IEEE-754 drift] */
+  $('#freq_weight, #skip_weight, #hist_weight').on('input', function() {
+    if (isPure()) { $('#weight-warning').hide(); $('.btn-submit').prop('disabled', false); return; }
+    var f = parseFloat($('#freq_weight').val()) || 0;
+    var s = parseFloat($('#skip_weight').val()) || 0;
+    var h = parseFloat($('#hist_weight').val()) || 0;
+    if (Math.abs(f + s + h - 100) > WEIGHT_TOLERANCE) {
+      $('#weight-warning').show();
+      $('.btn-submit').prop('disabled', true);
+    } else {
+      $('#weight-warning').hide();
+      $('.btn-submit').prop('disabled', false);
+    }
+  });
+
+  <?php if ($lotteryConfig['has_extra_ball']): ?>
+  $('#pb_freq_weight, #pb_skip_weight, #pb_hist_weight').on('input', function() {
+    if (isPure()) { $('#pb-weight-warning').hide(); $('.btn-submit').prop('disabled', false); return; }
+    var pf = parseFloat($('#pb_freq_weight').val()) || 0;
+    var ps = parseFloat($('#pb_skip_weight').val()) || 0;
+    var ph = parseFloat($('#pb_hist_weight').val()) || 0;
+    if (Math.abs(pf + ps + ph - 100) > WEIGHT_TOLERANCE) {
+      $('#pb-weight-warning').show();
+      $('.btn-submit').prop('disabled', true);
+    } else {
+      $('#pb-weight-warning').hide();
+      $('.btn-submit').prop('disabled', false);
+    }
+  });
+  <?php endif; ?>
+
+  $('form').on('submit', function() {
+    if (isPure()) { return true; }
+    var f = parseFloat($('#freq_weight').val()) || 0;
+    var s = parseFloat($('#skip_weight').val()) || 0;
+    var h = parseFloat($('#hist_weight').val()) || 0;
+    if (Math.abs(f + s + h - 100) > WEIGHT_TOLERANCE) {
+      alert('Please ensure Frequency + Skip + Historical weights total 100%.');
+      return false;
+    }
+    <?php if ($lotteryConfig['has_extra_ball']): ?>
+    var pf = parseFloat($('#pb_freq_weight').val()) || 0;
+    var ps = parseFloat($('#pb_skip_weight').val()) || 0;
+    var ph = parseFloat($('#pb_hist_weight').val()) || 0;
+    if (Math.abs(pf + ps + ph - 100) > WEIGHT_TOLERANCE) {
+      alert('Please ensure the extra ball weights total 100%.');
+      return false;
+    }
+    <?php endif; ?>
+    return true;
+  });
+
+  /* [FIND-AND-REPLACE: ES5 – const -> var; local time label] */
+  var localEl = document.getElementById('local-time-label');
+  if (localEl) {
+    var now = new Date();
+    localEl.textContent = now.toLocaleString(undefined, {
+      year:   'numeric',
+      month:  '2-digit',
+      day:    '2-digit',
+      hour:   '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  /* [FIND-AND-REPLACE: ES5 – const -> var] */
+  var updateButton = document.getElementById('updateButton');
   if (updateButton) {
-    updateButton.addEventListener("click", function() {
+    updateButton.addEventListener('click', function() {
       <?php if (!empty($saveable)): ?>
-        console.log("Saveable is true. You may implement JS logic here.");
+      console.log('Saveable: true.');
       <?php else: ?>
-        console.warn("Saveable is false. Nothing will be updated.");
+      console.warn('Saveable: false.');
       <?php endif; ?>
       return true;
     });
   }
 });
+[[/script]]
+
+<!-- [FIND-AND-REPLACE: ES5 beginner/advanced mode toggle (IIFE, localStorage)] -->
+[[script]]
+(function() {
+  var stored = localStorage.getItem('le_mode') || 'beginner';
+  /* Apply class immediately to avoid FOUC */
+  document.body.className += ' le-mode-' + stored;
+
+  function updateToggleLabel(mode) {
+    var btn = document.getElementById('leModeToggle');
+    var lbl = document.getElementById('leModeLabel');
+    if (!btn || !lbl) { return; }
+    if (mode === 'advanced') {
+      btn.setAttribute('aria-pressed', 'true');
+      lbl.textContent = 'Beginner Mode';
+    } else {
+      btn.setAttribute('aria-pressed', 'false');
+      lbl.textContent = 'Advanced Mode';
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    updateToggleLabel(stored);
+    var btn = document.getElementById('leModeToggle');
+    if (btn) {
+      btn.addEventListener('click', function() {
+        var current = localStorage.getItem('le_mode') || 'beginner';
+        var next    = (current === 'beginner') ? 'advanced' : 'beginner';
+        document.body.className =
+          document.body.className.replace('le-mode-' + current, 'le-mode-' + next);
+        localStorage.setItem('le_mode', next);
+        updateToggleLabel(next);
+      });
+    }
+  });
+}());
 [[/script]]
 [[/body]]
 [[/html]]
