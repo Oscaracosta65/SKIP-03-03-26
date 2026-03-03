@@ -257,7 +257,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST'
         $app->enqueueMessage('Invalid lottery selected.', 'error');
         $app->enqueueMessage(
             'Invalid lottery_id: '
-            . htmlspecialchars((string, ENT_QUOTES, 'UTF-8') $postedLotteryId, ENT_QUOTES, 'UTF-8'),
+            . htmlspecialchars((string) $postedLotteryId, ENT_QUOTES, 'UTF-8'),
             'error'
         );
         return;
@@ -1988,17 +1988,17 @@ document.addEventListener('DOMContentLoaded', function() {
         [[label for="freq_weight"]][[strong]]Frequency Weight (0–100%):[[/strong]][[/label]]
         [[input type="number" id="freq_weight" name="freq_weight" min="0" max="100" step="0.1"
           aria-describedby="weight-warning"
-          value="<?php echo htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$freqWeightInput, ENT_QUOTES, 'UTF-8'); ?>"]]
+          value="<?php echo htmlspecialchars((string)$freqWeightInput, ENT_QUOTES, 'UTF-8'); ?>"]]
 
         [[label for="skip_weight"]][[strong]]Skip Weight (0–100%):[[/strong]][[/label]]
         [[input type="number" id="skip_weight" name="skip_weight" min="0" max="100" step="0.1"
           aria-describedby="weight-warning"
-          value="<?php echo htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$skipWeightInput, ENT_QUOTES, 'UTF-8'); ?>"]]
+          value="<?php echo htmlspecialchars((string)$skipWeightInput, ENT_QUOTES, 'UTF-8'); ?>"]]
 
         [[label for="hist_weight"]][[strong]]Historical Weight (0–100%):[[/strong]][[/label]]
         [[input type="number" id="hist_weight" name="hist_weight" min="0" max="100" step="0.1"
           aria-describedby="weight-warning"
-          value="<?php echo htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$histWeightInput, ENT_QUOTES, 'UTF-8'); ?>"]]
+          value="<?php echo htmlspecialchars((string)$histWeightInput, ENT_QUOTES, 'UTF-8'); ?>"]]
       [[/div]]
       [[p id="weight-warning" class="helper-text" role="alert" style="display:none;color:#b00020;"]]
         The three weights must add up to exactly 100%.
@@ -2013,17 +2013,17 @@ document.addEventListener('DOMContentLoaded', function() {
         [[label for="pb_freq_weight"]][[strong]]Frequency Weight (0–100%):[[/strong]][[/label]]
         [[input type="number" id="pb_freq_weight" name="pb_freq_weight" min="0" max="100" step="0.1"
           aria-describedby="pb-weight-warning"
-          value="<?php echo htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$pbFreqWeightInput, ENT_QUOTES, 'UTF-8'); ?>"]]
+          value="<?php echo htmlspecialchars((string)$pbFreqWeightInput, ENT_QUOTES, 'UTF-8'); ?>"]]
 
         [[label for="pb_skip_weight"]][[strong]]Skip Weight (0–100%):[[/strong]][[/label]]
         [[input type="number" id="pb_skip_weight" name="pb_skip_weight" min="0" max="100" step="0.1"
           aria-describedby="pb-weight-warning"
-          value="<?php echo htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$pbSkipWeightInput, ENT_QUOTES, 'UTF-8'); ?>"]]
+          value="<?php echo htmlspecialchars((string)$pbSkipWeightInput, ENT_QUOTES, 'UTF-8'); ?>"]]
 
         [[label for="pb_hist_weight"]][[strong]]Historical Weight (0–100%):[[/strong]][[/label]]
         [[input type="number" id="pb_hist_weight" name="pb_hist_weight" min="0" max="100" step="0.1"
           aria-describedby="pb-weight-warning"
-          value="<?php echo htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$pbHistWeightInput, ENT_QUOTES, 'UTF-8'); ?>"]]
+          value="<?php echo htmlspecialchars((string)$pbHistWeightInput, ENT_QUOTES, 'UTF-8'); ?>"]]
       [[/div]]
       [[p id="pb-weight-warning" class="helper-text" role="alert" style="display:none;color:#b00020;"]]
         The extra ball weights must add up to exactly 100%.
@@ -2133,28 +2133,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
       [[div class="le-metric-card"]]
         [[p]]Avg Matches (Top 20)&#160;[[span class="le-tip-wrap"]][[button type="button" class="le-tip-btn" aria-label="Explain Avg Matches"]]i[[/button]][[span role="tooltip" class="le-tip-text"]]Average number of correct main-ball picks in the top&#160;20 ranked outputs, measured across the 20 most recent back-tests.[[/span]][[/span]][[/p]]
-        [[span class="le-metric-num"]]<?php echo isset($avgMainMatches) ? htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$avgMainMatches, ENT_QUOTES, 'UTF-8') : '0'; ?>[[/span]]
+        [[span class="le-metric-num"]]<?php echo isset($avgMainMatches) ? htmlspecialchars((string)$avgMainMatches, ENT_QUOTES, 'UTF-8') : '0'; ?>[[/span]]
       [[/div]]
 
       [[div class="le-metric-card le-advanced-only"]]
         [[p]]Recall&#64;20&#160;[[span class="le-tip-wrap"]][[button type="button" class="le-tip-btn" aria-label="Explain Recall at 20"]]i[[/button]][[span role="tooltip" class="le-tip-text"]]Fraction of actual winning numbers that appeared in the top&#160;20 ranked picks. E.g. 0.60&#160;= 3 out of 5 winners captured.[[/span]][[/span]][[/p]]
-        [[span class="le-metric-num"]]<?php echo isset($avgRecall20) ? htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$avgRecall20, ENT_QUOTES, 'UTF-8') : '0'; ?>[[/span]]
+        [[span class="le-metric-num"]]<?php echo isset($avgRecall20) ? htmlspecialchars((string)$avgRecall20, ENT_QUOTES, 'UTF-8') : '0'; ?>[[/span]]
       [[/div]]
 
       [[div class="le-metric-card le-advanced-only"]]
         [[p]]Mean Winner Rank&#160;[[span class="le-tip-wrap"]][[button type="button" class="le-tip-btn" aria-label="Explain Mean Winner Rank"]]i[[/button]][[span role="tooltip" class="le-tip-text"]]Average position (1&#8209;20) of the actual winning numbers in the ranked list. Lower is better.[[/span]][[/span]][[/p]]
-        [[span class="le-metric-num"]]<?php echo isset($avgMeanWinnerRank) ? htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$avgMeanWinnerRank, ENT_QUOTES, 'UTF-8') : '0'; ?>[[/span]]
+        [[span class="le-metric-num"]]<?php echo isset($avgMeanWinnerRank) ? htmlspecialchars((string)$avgMeanWinnerRank, ENT_QUOTES, 'UTF-8') : '0'; ?>[[/span]]
       [[/div]]
 
       [[div class="le-metric-card le-advanced-only"]]
         [[p]]NDCG&#64;20&#160;[[span class="le-tip-wrap"]][[button type="button" class="le-tip-btn" aria-label="Explain NDCG at 20"]]i[[/button]][[span role="tooltip" class="le-tip-text"]]Normalised Discounted Cumulative Gain: rewards placing winners higher in the ranked list. 1.0&#160;= perfect; 0.0&#160;= no winners found.[[/span]][[/span]][[/p]]
-        [[span class="le-metric-num"]]<?php echo isset($avgNdcg20) ? htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$avgNdcg20, ENT_QUOTES, 'UTF-8') : '0'; ?>[[/span]]
+        [[span class="le-metric-num"]]<?php echo isset($avgNdcg20) ? htmlspecialchars((string)$avgNdcg20, ENT_QUOTES, 'UTF-8') : '0'; ?>[[/span]]
       [[/div]]
 
       <?php if ($enableExtra && $lotteryConfig['has_extra_ball']): ?>
       [[div class="le-metric-card"]]
         [[p]]Extra Ball Accuracy[[/p]]
-        [[span class="le-metric-num" style="color:#c62828;"]]<?php echo isset($avgExtraSuccessPercent) ? htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$avgExtraSuccessPercent, ENT_QUOTES, 'UTF-8') . '%' : '0%'; ?>[[/span]]
+        [[span class="le-metric-num" style="color:#c62828;"]]<?php echo isset($avgExtraSuccessPercent) ? htmlspecialchars((string)$avgExtraSuccessPercent, ENT_QUOTES, 'UTF-8') . '%' : '0%'; ?>[[/span]]
       [[/div]]
       <?php endif; ?>
     [[/div]]
@@ -2471,7 +2471,7 @@ $saveAction = htmlspecialchars(
               : array_map('intval', explode(',', $result['predicted_main'])); 
           foreach ($predictedMainInts as $num) {
               $class = in_array($num, $actualMain, true) ? 'highlight' : '';
-              echo "[[span class='{$class}']]" . htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$num) . "[[/span]] ";
+              echo "[[span class='{$class}']]" . htmlspecialchars((string)$num, ENT_QUOTES, 'UTF-8') . "[[/span]] ";
           }
       ?>
                       [[/td]]
@@ -2479,7 +2479,7 @@ $saveAction = htmlspecialchars(
       <?php 
           foreach ($actualMain as $num) {
               $class = in_array($num, $predictedMainInts, true) ? 'highlight' : '';
-              echo "[[span class='{$class}']]" . htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$num) . "[[/span]] "; 
+              echo "[[span class='{$class}']]" . htmlspecialchars((string)$num, ENT_QUOTES, 'UTF-8') . "[[/span]] "; 
           }
       ?>
                       [[/td]]
@@ -2497,11 +2497,11 @@ $saveAction = htmlspecialchars(
           $actualExtraVal = (int)($result['actual_extra'] ?? 0); 
           foreach ($predictedExtra as $num) {
               $class = ((int)$num === $actualExtraVal) ? 'highlight' : '';
-              echo "[[span class='{$class}']]" . htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$num) . "[[/span]] ";
+              echo "[[span class='{$class}']]" . htmlspecialchars((string)$num, ENT_QUOTES, 'UTF-8') . "[[/span]] ";
           }
       ?>
                       [[/td]]
-                      [[td]]<?php echo htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$actualExtraVal); ?>[[/td]]
+                      [[td]]<?php echo htmlspecialchars((string)$actualExtraVal, ENT_QUOTES, 'UTF-8'); ?>[[/td]]
                       [[td]]<?php echo $result['extra_success'] ?? ''; ?>[[/td]]
                       <?php endif; ?>
                   [[/tr]]
@@ -2540,7 +2540,7 @@ $saveAction = htmlspecialchars(
                       [[th]]Skip[[/th]]
                       [[th]]0[[/th]]
                       <?php for ($i = 1; $i <= 20; $i++): ?>
-                          [[th]]<?php echo htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$i); ?>[[/th]]
+                          [[th]]<?php echo htmlspecialchars((string)$i, ENT_QUOTES, 'UTF-8'); ?>[[/th]]
                       <?php endfor; ?>
                   [[/tr]]
               [[/thead]]
@@ -2556,17 +2556,17 @@ $saveAction = htmlspecialchars(
         $currentSkip = count($fullMainHistory) - $index - 1;
   ?>
   [[tr]]
-    [[td]]<?php echo htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$number); ?>[[/td]]
-    [[td]]<?php echo htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$drawCount); ?>[[/td]]
-    [[td]]<?php echo htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$lastDate); ?>[[/td]]
-    [[td]]<?php echo htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$currentSkip); ?>[[/td]]
+    [[td]]<?php echo htmlspecialchars((string)$number, ENT_QUOTES, 'UTF-8'); ?>[[/td]]
+    [[td]]<?php echo htmlspecialchars((string)$drawCount, ENT_QUOTES, 'UTF-8'); ?>[[/td]]
+    [[td]]<?php echo htmlspecialchars((string)$lastDate, ENT_QUOTES, 'UTF-8'); ?>[[/td]]
+    [[td]]<?php echo htmlspecialchars((string)$currentSkip, ENT_QUOTES, 'UTF-8'); ?>[[/td]]
     <?php for ($i = 0; $i <= 20; $i++): ?>
       <?php 
         $skipCount = $mainSkips[$number][$i] ?? '';
         $class     = ($currentSkip == $i) ? 'highlight' : '';
       ?>
       [[td class="<?php echo $class; ?>"]]
-        <?php echo htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$skipCount); ?>
+        <?php echo htmlspecialchars((string)$skipCount, ENT_QUOTES, 'UTF-8'); ?>
       [[/td]]
     <?php endfor; ?>
   [[/tr]]
@@ -2594,7 +2594,7 @@ $saveAction = htmlspecialchars(
                       [[th]]Skip[[/th]]
                       [[th]]0[[/th]]
                       <?php for ($i = 1; $i <= 20; $i++): ?>
-                          [[th]]<?php echo htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$i); ?>[[/th]]
+                          [[th]]<?php echo htmlspecialchars((string)$i, ENT_QUOTES, 'UTF-8'); ?>[[/th]]
                       <?php endfor; ?>
                   [[/tr]]
               [[/thead]]
@@ -2610,16 +2610,16 @@ foreach ($powerballPreviousIndex as $number => $index):
 ?>
 
                       [[tr]]
-                          [[td]]<?php echo htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$number); ?>[[/td]]
-                          [[td]]<?php echo htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$drawCount); ?>[[/td]]
-                          [[td]]<?php echo htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$lastDate); ?>[[/td]]
-                          [[td]]<?php echo htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$currentSkip); ?>[[/td]]
+                          [[td]]<?php echo htmlspecialchars((string)$number, ENT_QUOTES, 'UTF-8'); ?>[[/td]]
+                          [[td]]<?php echo htmlspecialchars((string)$drawCount, ENT_QUOTES, 'UTF-8'); ?>[[/td]]
+                          [[td]]<?php echo htmlspecialchars((string)$lastDate, ENT_QUOTES, 'UTF-8'); ?>[[/td]]
+                          [[td]]<?php echo htmlspecialchars((string)$currentSkip, ENT_QUOTES, 'UTF-8'); ?>[[/td]]
                           <?php for ($i = 0; $i <= 20; $i++):
                               $skipCount = $powerballSkips[$number][$i] ?? '';
                               $class = ($currentSkip == $i) ? 'highlight' : '';
                           ?>
                           [[td class="<?php echo $class; ?>"]]
-                              <?php echo htmlspecialchars((string, ENT_QUOTES, 'UTF-8')$skipCount); ?>
+                              <?php echo htmlspecialchars((string)$skipCount, ENT_QUOTES, 'UTF-8'); ?>
                           [[/td]]
                           <?php endfor; ?>
                       [[/tr]]
